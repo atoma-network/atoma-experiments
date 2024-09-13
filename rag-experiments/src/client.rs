@@ -37,7 +37,7 @@ impl EmbeddingClient {
                 return Err(anyhow::anyhow!("Failed to create Pinecone client: {}", e));
             }
         };
-        let indexes = match pinecone_client.list_indexes().await {
+        match pinecone_client.list_indexes().await {
             Ok(indexes) => {
                 info!("Client indexes: {:?}", indexes);
                 indexes
@@ -47,7 +47,6 @@ impl EmbeddingClient {
                 return Err(anyhow::anyhow!("Failed to list indexes: {}", e));
             }
         };
-        info!("Client indexes: {:?}", indexes);
         Ok(Self {
             counter: 0,
             embedding_client: Client::new(),
