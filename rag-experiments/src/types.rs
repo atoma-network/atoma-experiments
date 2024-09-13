@@ -18,11 +18,6 @@ pub struct TextToEmbed {
     pub date: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Response {
-    pub result: String,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QueryInput {
     pub index_name: String,
