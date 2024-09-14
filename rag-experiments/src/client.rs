@@ -11,12 +11,22 @@ use tracing::{error, info, info_span, instrument, Span};
 
 const CURRENT_NAME_SPACE: &str = "atoma-alpha";
 
+/// A client for managing embeddings and interacting with Pinecone vector database.
+///
+/// This struct provides methods for creating embeddings, storing them in Pinecone,
+/// creating indexes, and querying the vector database.
 pub struct EmbeddingClient {
+    /// Counter for generating unique IDs for stored embeddings.
     pub counter: usize,
+    /// HTTP client for making requests to the embedding service.
     pub embedding_client: Client,
+    /// Client for interacting with the Pinecone API.
     pub pinecone_client: PineconeClient,
+    /// Host address of the embedding service.
     pub host: String,
+    /// Port number of the embedding service.
     pub port: u16,
+    /// Tracing span for logging and debugging.
     pub span: Span,
 }
 
