@@ -1,6 +1,6 @@
 use crate::{
-    client::{EmbeddingClient, QueryResponse},
-    types::{CreateIndexInput, MetricOptions, QueryInput, TextToEmbed},
+    client::EmbeddingClient,
+    types::{CreateIndexInput, MetricOptions, QueryInput, QueryResponse, TextToEmbed},
 };
 use anyhow::Error;
 use axum::{

@@ -6,8 +6,9 @@ use pinecone_sdk::{
     pinecone::{PineconeClient, PineconeClientConfig},
 };
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use tracing::{error, info, info_span, instrument, Span};
+
+use crate::types::QueryResponse;
 
 const CURRENT_NAME_SPACE: &str = "atoma-alpha";
 
@@ -31,6 +32,7 @@ pub struct EmbeddingClient {
 }
 
 impl EmbeddingClient {
+    /// Constructor
     pub async fn new(host: String, port: u16) -> Result<Self> {
         let span = info_span!("embedding_client");
         let cloned_span = span.clone();
@@ -67,6 +69,22 @@ impl EmbeddingClient {
         })
     }
 
+    /// Creates an embedding for the given text using the embedding service.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The input text to be embedded.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a vector of 32-bit floating-point numbers
+    /// representing the embedding if successful, or an error if the operation fails.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The HTTP request to the embedding service fails.
+    /// - The response cannot be parsed as a vector of f32 values.
     #[instrument(skip_all)]
     pub async fn create_embedding(&self, text: String) -> Result<Vec<f32>> {
         let _enter = self.span.enter();
@@ -82,6 +100,28 @@ impl EmbeddingClient {
         Ok(embedding)
     }
 
+    /// Stores an embedding in the specified Pinecone index.
+    ///
+    /// # Arguments
+    ///
+    /// * `original_text` - The original text associated with the embedding.
+    /// * `embedding` - The vector representation of the text to be stored.
+    /// * `index_name` - The name of the Pinecone index to store the embedding in.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the embedding is successfully stored, or an `Err` if an error occurs.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The Pinecone index cannot be retrieved.
+    /// - The upsert operation to the Pinecone index fails.
+    ///
+    /// # Notes
+    ///
+    /// This method increments an internal counter to generate unique IDs for each stored embedding.
+    /// The embedding is stored with metadata containing the original text.
     #[instrument(skip_all)]
     pub async fn store_embedding(
         &mut self,
@@ -122,6 +162,29 @@ impl EmbeddingClient {
         }
     }
 
+    /// Creates a new serverless index in Pinecone.
+    ///
+    /// # Arguments
+    ///
+    /// * `index_name` - The name of the index to create.
+    /// * `dimension` - The dimension of the vectors to be stored in the index.
+    /// * `metric` - Optional similarity metric to use. Defaults to Cosine similarity if not provided.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the index is successfully created, or an `Err` if an error occurs.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The Pinecone API request fails.
+    /// - There's an issue with creating the serverless index.
+    ///
+    /// # Notes
+    ///
+    /// - The index is created in the AWS us-east-1 region.
+    /// - Deletion protection is enabled for the created index.
+    /// - The function uses a no-wait policy, meaning it returns immediately after initiating index creation.
     #[instrument(skip_all)]
     pub async fn create_index(
         &mut self,
@@ -157,6 +220,30 @@ impl EmbeddingClient {
         }
     }
 
+    /// Queries the Pinecone index with a given input and returns the most similar results.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The input text to query against the index.
+    /// * `index_name` - The name of the Pinecone index to query.
+    /// * `top_k` - Optional number of top results to return. Defaults to 10 if not specified.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a vector of `QueryResponse` structs if successful.
+    /// Each `QueryResponse` contains the similarity score, embedding vector, and original text.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The Pinecone index cannot be retrieved.
+    /// - Creating an embedding for the query fails.
+    /// - Querying the Pinecone index fails.
+    /// - The metadata in the response doesn't contain the expected text field.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the metadata in the response doesn't contain the expected text field.
     #[instrument(skip_all)]
     pub async fn query(
         &self,
@@ -219,11 +306,4 @@ impl EmbeddingClient {
             .collect::<Vec<_>>();
         Ok(query_response)
     }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct QueryResponse {
-    pub score: f32,
-    pub embedding: Vec<f32>,
-    pub text: String,
 }
