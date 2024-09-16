@@ -89,12 +89,22 @@ impl EmbeddingClient {
     pub async fn create_embedding(&self, text: String) -> Result<Vec<f32>> {
         let _enter = self.span.enter();
         info!("Posting to embedding client");
-        let response = self
+        let response = match self
             .embedding_client
             .post(format!("http://{}:{}/embed", self.host, self.port))
             .json(&text)
             .send()
-            .await?;
+            .await
+        {
+            Ok(res) => res,
+            Err(e) => {
+                error!("Error posting to embedding client: {:?}", e);
+                return Err(anyhow::anyhow!(
+                    "Error posting to embedding client: {:?}",
+                    e
+                ));
+            }
+        };
         let embedding = response.json::<Vec<f32>>().await?;
         info!("Embedding: {:?}", embedding);
         Ok(embedding)

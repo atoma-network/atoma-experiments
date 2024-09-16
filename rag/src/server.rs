@@ -67,9 +67,13 @@ pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<(),
         .route("/query", get(query))
         .with_state(app_state);
 
-    let ip: IpAddr = host
-        .parse()
-        .map_err(|_| Error::msg("Invalid host address"))?;
+    let ip: IpAddr = match host.parse() {
+        Ok(ip) => ip,
+        Err(_) => {
+            error!("Invalid host address");
+            return Err(Error::msg("Invalid host address"));
+        }
+    };
     let addr = SocketAddr::new(ip, port);
     match axum_server::bind(addr)
         .serve(router.into_make_service())
@@ -88,7 +92,7 @@ pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<(),
 
 /// Handles the embedding of text and storing it in the specified index.
 ///
-/// This function takes text input, creates an embedding for it, parsed as a JSON string, 
+/// This function takes text input, creates an embedding for it, parsed as a JSON string,
 /// and stores the embedding along with the original text in the specified index.
 ///
 /// # Arguments
