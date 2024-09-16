@@ -120,6 +120,7 @@ pub async fn embed(
     let _enter = span.enter();
     info!("Embedding text, for query with id: {}", input.query_id);
     let mut embedding_client = app_state.embedding_client.lock().await;
+    let pinecone_host = embedding_client.pinecone_host.clone();
     let embedding = match embedding_client
         .create_embedding(
             serde_json::to_string(&input)
@@ -136,7 +137,7 @@ pub async fn embed(
     let original_text = serde_json::to_string(&input)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     match embedding_client
-        .store_embedding(original_text, embedding, &input.index_name)
+        .store_embedding(&pinecone_host, original_text, embedding)
         .await
     {
         Ok(_) => Ok(Json(())),

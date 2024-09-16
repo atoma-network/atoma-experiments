@@ -24,6 +24,8 @@ pub struct EmbeddingClient {
     pub embedding_client: Client,
     /// Client for interacting with the Pinecone API.
     pub pinecone_client: PineconeClient,
+    /// Host address of the Pinecone server.
+    pub pinecone_host: String,
     /// Host address of the embedding service.
     pub host: String,
     /// Port number of the embedding service.
@@ -34,7 +36,7 @@ pub struct EmbeddingClient {
 
 impl EmbeddingClient {
     /// Constructor
-    pub async fn new(host: String, port: u16) -> Result<Self> {
+    pub async fn new(host: String, port: u16, pinecone_host: String) -> Result<Self> {
         let span = info_span!("embedding_client");
         let cloned_span = span.clone();
         let _enter = span.enter();
@@ -64,6 +66,7 @@ impl EmbeddingClient {
             counter: 0,
             embedding_client: Client::new(),
             pinecone_client,
+            pinecone_host,
             host,
             port,
             span: cloned_span,
@@ -144,13 +147,13 @@ impl EmbeddingClient {
     #[instrument(skip_all)]
     pub async fn store_embedding(
         &mut self,
+        host: &str,
         original_text: String,
         embedding: Vec<Vec<f32>>,
-        index_name: &str,
     ) -> Result<()> {
         let _enter = self.span.enter();
         info!("Storing embedding");
-        let mut index = self.pinecone_client.index(index_name).await?;
+        let mut index = self.pinecone_client.index(&host).await?;
         let metadata: Metadata = Metadata {
             fields: BTreeMap::from_iter(vec![(
                 "text".to_string(),

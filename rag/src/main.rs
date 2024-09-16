@@ -22,13 +22,15 @@ async fn main() -> Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
 
+    let pinecone_host = env::var("PINECONE_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+
     // Initialize your EmbeddingClient here
     // For example:
     // let client = EmbeddingClient::new(/* parameters */);
 
     info!("Starting server on {}:{}", host, port);
 
-    let client = EmbeddingClient::new(embedding_host, embedding_port).await?;
+    let client = EmbeddingClient::new(embedding_host, embedding_port, pinecone_host).await?;
     // Start the server
     start(&host, port, client).await?;
 
