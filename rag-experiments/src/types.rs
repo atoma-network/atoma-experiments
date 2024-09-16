@@ -9,6 +9,10 @@ pub struct TextToEmbed {
     pub index_name: String,
     /// The actual text content to be embedded
     pub content: String,
+    /// The topic of the document
+    pub topic: String,
+    /// Optional description of the document
+    pub description: Option<String>,
     /// Optional source of the document
     pub source: Option<String>,
     /// Optional author of the document

@@ -88,8 +88,8 @@ pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<(),
 
 /// Handles the embedding of text and storing it in the specified index.
 ///
-/// This function takes text input, creates an embedding for it, and stores
-/// the embedding along with the original text in the specified index.
+/// This function takes text input, creates an embedding for it, parsed as a JSON string, 
+/// and stores the embedding along with the original text in the specified index.
 ///
 /// # Arguments
 ///
