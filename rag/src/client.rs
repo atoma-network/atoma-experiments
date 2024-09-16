@@ -87,9 +87,9 @@ impl EmbeddingClient {
     /// - The HTTP request to the embedding service fails.
     /// - The response cannot be parsed as a vector of f32 values.
     #[instrument(skip_all)]
-    pub async fn create_embedding(&self, text: String) -> Result<Vec<f32>> {
+    pub async fn create_embedding(&self, text: String) -> Result<Vec<Vec<f32>>> {
         let _enter = self.span.enter();
-        let input = json!({ "input": text });
+        let input = json!({ "inputs": text });
         info!("Posting to embedding client");
         let response = match self
             .embedding_client
@@ -108,7 +108,7 @@ impl EmbeddingClient {
             }
         };
         debug!("Response: {:?} for text = {}", response, text);
-        let embedding = match response.json::<Vec<f32>>().await {
+        let embedding = match response.json::<Vec<Vec<f32>>>().await {
             Ok(embedding) => embedding,
             Err(e) => {
                 error!("Error parsing embedding: {:?}", e);
@@ -145,7 +145,7 @@ impl EmbeddingClient {
     pub async fn store_embedding(
         &mut self,
         original_text: String,
-        embedding: Vec<f32>,
+        embedding: Vec<Vec<f32>>,
         index_name: &str,
     ) -> Result<()> {
         let _enter = self.span.enter();
@@ -161,7 +161,7 @@ impl EmbeddingClient {
         };
         let vector = Vector {
             id: format!("{}", self.counter),
-            values: embedding,
+            values: embedding.into_iter().flatten().collect(),
             sparse_values: None,
             metadata: Some(metadata),
         };
@@ -289,7 +289,7 @@ impl EmbeddingClient {
         };
         let response = match index
             .query_by_value(
-                query_vector,
+                query_vector.into_iter().flatten().collect(),
                 None,
                 top_k,
                 &CURRENT_NAME_SPACE.into(),
