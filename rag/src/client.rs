@@ -6,7 +6,7 @@ use pinecone_sdk::{
     pinecone::{PineconeClient, PineconeClientConfig},
 };
 use reqwest::Client;
-use tracing::{error, info, info_span, instrument, Span};
+use tracing::{debug, error, info, info_span, instrument, Span};
 
 use crate::types::QueryResponse;
 
@@ -105,7 +105,14 @@ impl EmbeddingClient {
                 ));
             }
         };
-        let embedding = response.json::<Vec<f32>>().await?;
+        debug!("Response: {:?} for text = {}", response, text);
+        let embedding = match response.json::<Vec<f32>>().await {
+            Ok(embedding) => embedding,
+            Err(e) => {
+                error!("Error parsing embedding: {:?}", e);
+                return Err(anyhow::anyhow!("Error parsing embedding: {:?}", e));
+            }
+        };
         info!("Embedding: {:?}", embedding);
         Ok(embedding)
     }
