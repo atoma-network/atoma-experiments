@@ -1,3 +1,3 @@
-rag-experiments/.env
-rag-experiments/target
-rag-experiments/Cargo.lock
+rag/.env
+rag/target
+rag/Cargo.lock
