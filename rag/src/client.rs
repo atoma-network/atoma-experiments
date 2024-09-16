@@ -6,6 +6,7 @@ use pinecone_sdk::{
     pinecone::{PineconeClient, PineconeClientConfig},
 };
 use reqwest::Client;
+use serde_json::json;
 use tracing::{debug, error, info, info_span, instrument, Span};
 
 use crate::types::QueryResponse;
@@ -88,11 +89,12 @@ impl EmbeddingClient {
     #[instrument(skip_all)]
     pub async fn create_embedding(&self, text: String) -> Result<Vec<f32>> {
         let _enter = self.span.enter();
+        let input = json!({ "input": text });
         info!("Posting to embedding client");
         let response = match self
             .embedding_client
             .post(format!("http://{}:{}/embed", self.host, self.port))
-            .json(&text)
+            .json(&input)
             .send()
             .await
         {
