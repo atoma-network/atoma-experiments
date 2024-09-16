@@ -11,7 +11,7 @@ use tracing::{debug, error, info, info_span, instrument, Span};
 
 use crate::types::QueryResponse;
 
-const CURRENT_NAME_SPACE: &str = "atoma-alpha";
+const CURRENT_NAME_SPACE: &str = "atoma-alpha-namespace";
 
 /// A client for managing embeddings and interacting with Pinecone vector database.
 ///
@@ -27,20 +27,24 @@ pub struct EmbeddingClient {
     /// Host address of the Pinecone server.
     pub pinecone_host: String,
     /// Host address of the embedding service.
-    pub host: String,
+    pub embedding_host: String,
     /// Port number of the embedding service.
-    pub port: u16,
+    pub embedding_port: u16,
     /// Tracing span for logging and debugging.
     pub span: Span,
 }
 
 impl EmbeddingClient {
     /// Constructor
-    pub async fn new(host: String, port: u16, pinecone_host: String) -> Result<Self> {
+    pub async fn new(
+        embedding_host: String,
+        embedding_port: u16,
+        pinecone_api_key: String,
+        pinecone_host: String,
+    ) -> Result<Self> {
         let span = info_span!("embedding_client");
         let cloned_span = span.clone();
         let _enter = span.enter();
-        let pinecone_api_key = std::env::var("PINECONE_API_KEY").expect("PINECONE_API_KEY not set");
         let config = PineconeClientConfig {
             api_key: Some(pinecone_api_key),
             ..Default::default()
@@ -67,8 +71,8 @@ impl EmbeddingClient {
             embedding_client: Client::new(),
             pinecone_client,
             pinecone_host,
-            host,
-            port,
+            embedding_host,
+            embedding_port,
             span: cloned_span,
         })
     }
@@ -96,7 +100,10 @@ impl EmbeddingClient {
         info!("Posting to embedding client");
         let response = match self
             .embedding_client
-            .post(format!("http://{}:{}/embed", self.host, self.port))
+            .post(format!(
+                "http://{}:{}/embed",
+                self.embedding_host, self.embedding_port
+            ))
             .json(&input)
             .send()
             .await
@@ -168,7 +175,7 @@ impl EmbeddingClient {
             sparse_values: None,
             metadata: Some(metadata),
         };
-        match index.upsert(&[vector], &CURRENT_NAME_SPACE.into()).await {
+        match index.upsert(&[vector], &"".into()).await {
             Ok(result) => {
                 info!(
                     "Response successful, with insertions: {:?}",
