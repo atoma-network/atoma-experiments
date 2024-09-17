@@ -10,7 +10,7 @@ pub struct TextToEmbed {
     /// The actual text content to be embedded
     pub content: String,
     /// The topic of the document
-    pub topic: String,
+    pub topic: Option<String>,
     /// Optional description of the document
     pub description: Option<String>,
     /// Optional source of the document

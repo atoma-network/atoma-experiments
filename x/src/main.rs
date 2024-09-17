@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::DateTime;
 use dotenv::dotenv;
 use rag::{client::EmbeddingClient, server::start, types::TextToEmbed};
 use reqwest::Client;
@@ -8,7 +7,7 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
 };
 use tracing::{error, info, info_span};
-use x::{note_tweet::parse_note_tweets, tweets::parse_tweets};
+use x::note_tweet::parse_note_tweets;
 
 const INDEX_NAME: &str = "atoma-alpha-mistral";
 
@@ -37,9 +36,7 @@ async fn main() -> Result<()> {
     let note_tweets =
         parse_note_tweets(&env::var("NOTE_TWEET_FILE").expect("NOTE_TWEET_FILE not set"))
             .expect("Failed to parse note tweets json file");
-    let tweets = parse_tweets(&env::var("TWEET_FILE").expect("TWEET_FILE not set"))
-        .expect("Failed to parse tweets json file");
-    
+
     let host_clone = host.clone();
     let _join_handle = tokio::spawn(async move {
         let client = EmbeddingClient::new(
@@ -57,13 +54,13 @@ async fn main() -> Result<()> {
     for note_tweet in note_tweets {
         let mut default_hasher = DefaultHasher::new();
         note_tweet.hash(&mut default_hasher);
-
+        let query_id = default_hasher.finish().to_string();
         let text_to_embed = TextToEmbed {
-            query_id: default_hasher.finish().to_string(),
+            query_id: query_id.clone(),
             index_name: INDEX_NAME.to_string(),
             content: note_tweet.core.text,
-            topic: "".to_string(),
-            description: Some("".to_string()),
+            topic: None,
+            description: None,
             source: Some("x".to_string()),
             author: Some(username.clone()),
             page: None,
@@ -81,6 +78,7 @@ async fn main() -> Result<()> {
             }
             Err(e) => {
                 error!("Error: {:?}", e);
+                panic!("Failed to successfully embed the tweet data for query_id: {}, with error: {:?}", query_id, e);
             }
         }
     }

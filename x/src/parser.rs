@@ -19,15 +19,16 @@ pub fn parse_tweet_data_to_embed(
             .find(|t| {
                 let text = t.full_text.split('…').next().unwrap();
                 println!("TWEET: {}\n\n", text.get(0..10).unwrap());
-                note_tweet.core.text.contains(&text.get(0..10).unwrap())}
-            ).expect("Failed ot extract tweet from node tweet");
+                note_tweet.core.text.contains(&text.get(0..10).unwrap())
+            })
+            .expect("Failed ot extract tweet from node tweet");
         let mut default_hasher = DefaultHasher::new();
         note_tweet.hash(&mut default_hasher);
         text_to_embeds.push(TextToEmbed {
             query_id: default_hasher.finish().to_string(),
             index_name: index_name.clone(),
             content: note_tweet.core.text,
-            topic: "".to_string(),
+            topic: None,
             description: None,
             source: Some("x".to_string()),
             author: Some(author.clone()),
