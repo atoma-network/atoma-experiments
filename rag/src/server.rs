@@ -2,7 +2,7 @@ use crate::{
     client::EmbeddingClient,
     types::{CreateIndexInput, MetricOptions, QueryInput, QueryResponse, TextToEmbed},
 };
-use anyhow::Error;
+use anyhow::{Error, Result};
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -56,7 +56,7 @@ impl AppState {
 /// - The server fails to bind to the specified address and port.
 /// - There's an error while serving the application.
 #[instrument(skip_all)]
-pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<(), Error> {
+pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<()> {
     let span = info_span!("start-server");
     let _enter = span.enter();
     info!("Starting server on {}:{}", host, port);

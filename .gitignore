@@ -1,3 +1,6 @@
 rag/.env
-rag/target
+rag/target/
 rag/Cargo.lock
+x/target/
+x/Cargo.lock
+x/.env
