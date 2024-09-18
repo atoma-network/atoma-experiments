@@ -191,15 +191,22 @@ pub async fn query(
         index_name,
         query_text,
         top_k,
+        score_threshold,
     } = input;
     let embedding_client = app_state.embedding_client.lock().await;
-    let query_response = match embedding_client.query(query_text, &index_name, top_k).await {
+    let mut query_response = match embedding_client.query(query_text, &index_name, top_k).await {
         Ok(query_response) => query_response,
         Err(e) => {
             error!("Error querying: {}", e);
             return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
         }
     };
+    if let Some(score_threshold) = score_threshold {
+        query_response.retain(|result| result.score >= score_threshold);
+    }
+    if let Some(top_k) = top_k {
+        query_response.truncate(top_k as usize);
+    }
     Ok(Json(query_response))
 }
 

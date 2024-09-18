@@ -32,6 +32,8 @@ pub struct QueryInput {
     pub query_text: String,
     /// Optional number of top results to return
     pub top_k: Option<u32>,
+    /// Optional score threshold for filtering results
+    pub score_threshold: Option<f32>,
 }
 
 /// Represents a single query response item
