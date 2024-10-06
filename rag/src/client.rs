@@ -160,7 +160,7 @@ impl EmbeddingClient {
     ) -> Result<()> {
         let _enter = self.span.enter();
         info!("Storing embedding");
-        let mut index = self.pinecone_client.index(&host).await?;
+        let mut index = self.pinecone_client.index(host).await?;
         let metadata: Metadata = Metadata {
             fields: BTreeMap::from_iter(vec![(
                 "text".to_string(),
