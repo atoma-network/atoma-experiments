@@ -67,7 +67,12 @@ impl AppState {
 /// - The server fails to bind to the specified address and port.
 /// - There's an error while serving the application.
 #[instrument(skip_all)]
-pub async fn start(host: &str, port: u16, client: EmbeddingClient, split_criteria: Option<SplitCriteria>) -> Result<()> {
+pub async fn start(
+    host: &str,
+    port: u16,
+    client: EmbeddingClient,
+    split_criteria: Option<SplitCriteria>,
+) -> Result<()> {
     let span = info_span!("start-server");
     let _enter = span.enter();
     info!("Starting server on {}:{}", host, port);
@@ -213,7 +218,10 @@ pub async fn query(
         score_threshold,
     } = input;
     let embedding_client = app_state.embedding_client.lock().await;
-    let mut query_response = match embedding_client.query(&query_text, &index_name, top_k).await {
+    let mut query_response = match embedding_client
+        .query(&query_text, &index_name, top_k)
+        .await
+    {
         Ok(query_response) => query_response,
         Err(e) => {
             error!("Error querying: {}", e);
