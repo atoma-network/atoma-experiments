@@ -1,4 +1,4 @@
 pub mod client;
-pub mod corpus;
 pub mod server;
+pub mod split_criteria;
 pub mod types;

@@ -1,5 +1,6 @@
 use crate::{
     client::EmbeddingClient,
+    split_criteria::SplitCriteria,
     types::{CreateIndexInput, MetricOptions, QueryInput, QueryResponse, TextToEmbed},
 };
 use anyhow::{Error, Result};
@@ -10,10 +11,14 @@ use axum::{
     Router,
 };
 use pinecone_sdk::models::Metric;
+use serde_json::json;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info, info_span, instrument};
+
+const DEFAULT_MAX_TOKENS: usize = 512;
+const DEFAULT_CONTEXT_SENTENCES: usize = 1;
 
 /// Represents the shared state of the application.
 ///
@@ -26,13 +31,19 @@ pub struct AppState {
     /// This allows multiple handlers to access and modify the embedding client
     /// concurrently without causing data races.
     embedding_client: Arc<Mutex<EmbeddingClient>>,
+    /// Split criteria for text splitting
+    split_criteria: SplitCriteria,
 }
 
 impl AppState {
     /// Constructor
-    pub fn new(client: EmbeddingClient) -> Self {
+    pub fn new(client: EmbeddingClient, split_criteria: Option<SplitCriteria>) -> Self {
         AppState {
             embedding_client: Arc::new(Mutex::new(client)),
+            split_criteria: split_criteria.unwrap_or(SplitCriteria::TokenCount {
+                max_tokens: DEFAULT_MAX_TOKENS,
+                context_sentences: DEFAULT_CONTEXT_SENTENCES,
+            }),
         }
     }
 }
@@ -56,11 +67,11 @@ impl AppState {
 /// - The server fails to bind to the specified address and port.
 /// - There's an error while serving the application.
 #[instrument(skip_all)]
-pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<()> {
+pub async fn start(host: &str, port: u16, client: EmbeddingClient, split_criteria: Option<SplitCriteria>) -> Result<()> {
     let span = info_span!("start-server");
     let _enter = span.enter();
     info!("Starting server on {}:{}", host, port);
-    let app_state = AppState::new(client);
+    let app_state = AppState::new(client, split_criteria);
     let router = Router::new()
         .route("/create_index", post(create_index))
         .route("/embed", post(embed))
@@ -115,37 +126,45 @@ pub async fn start(host: &str, port: u16, client: EmbeddingClient) -> Result<()>
 pub async fn embed(
     State(app_state): State<AppState>,
     Json(input): Json<TextToEmbed>,
-) -> Result<Json<()>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let span = info_span!("embed");
     let _enter = span.enter();
     info!("Embedding text, for query with id: {}", input.query_id);
     let mut embedding_client = app_state.embedding_client.lock().await;
     let pinecone_host = embedding_client.pinecone_host.clone();
-    let embedding = match embedding_client
-        .create_embedding(
-            serde_json::to_string(&input)
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
-        )
-        .await
-    {
-        Ok(embedding) => embedding,
+    let chunks = match app_state.split_criteria.split(&input.content, None) {
+        Ok(chunks) => chunks,
         Err(e) => {
-            error!("Error creating embedding: {}", e);
+            error!("Error splitting text: {}", e);
             return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
         }
     };
     let original_text = serde_json::to_string(&input)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    match embedding_client
-        .store_embedding(&pinecone_host, original_text, embedding)
-        .await
-    {
-        Ok(_) => Ok(Json(())),
-        Err(e) => {
-            error!("Error storing embedding: {}", e);
-            Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    for chunk in chunks.iter() {
+        let embedding = match embedding_client.create_embedding(chunk).await {
+            Ok(embedding) => embedding,
+            Err(e) => {
+                error!("Error creating embedding: {}", e);
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+            }
+        };
+        match embedding_client
+            .store_embedding(&pinecone_host, original_text.clone(), embedding)
+            .await
+        {
+            Ok(_) => (),
+            Err(e) => {
+                error!("Error storing embedding: {}", e);
+                return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+            }
         }
     }
+
+    Ok(Json(json!({
+        "query_id": input.query_id,
+        "status": "success",
+    })))
 }
 
 /// Handles querying the vector database for similar embeddings.
@@ -194,7 +213,7 @@ pub async fn query(
         score_threshold,
     } = input;
     let embedding_client = app_state.embedding_client.lock().await;
-    let mut query_response = match embedding_client.query(query_text, &index_name, top_k).await {
+    let mut query_response = match embedding_client.query(&query_text, &index_name, top_k).await {
         Ok(query_response) => query_response,
         Err(e) => {
             error!("Error querying: {}", e);

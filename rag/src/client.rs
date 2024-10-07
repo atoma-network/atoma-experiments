@@ -94,7 +94,7 @@ impl EmbeddingClient {
     /// - The HTTP request to the embedding service fails.
     /// - The response cannot be parsed as a vector of f32 values.
     #[instrument(skip_all)]
-    pub async fn create_embedding(&self, text: String) -> Result<Vec<Vec<f32>>> {
+    pub async fn create_embedding(&self, text: &str) -> Result<Vec<Vec<f32>>> {
         let _enter = self.span.enter();
         let input = json!({ "inputs": text });
         info!("Posting to embedding client");
@@ -276,7 +276,7 @@ impl EmbeddingClient {
     #[instrument(skip_all)]
     pub async fn query(
         &self,
-        query: String,
+        query: &str,
         index_name: &str,
         top_k: Option<u32>,
     ) -> Result<Vec<QueryResponse>> {

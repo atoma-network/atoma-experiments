@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     )
     .await?;
     // Start the server
-    start(&host, port, client).await?;
+    start(&host, port, client, None).await?;
 
     Ok(())
 }

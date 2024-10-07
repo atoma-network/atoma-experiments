@@ -1,29 +1,9 @@
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use tokenizers::Tokenizer;
 use unicode_segmentation::UnicodeSegmentation;
 
-// pub struct Corpus {
-//     pub original_text: String,
-//     pub token_count_per_chunk: usize,
-//     pub chunks: Vec<String>,
-//     pub in_context_of: Vec<String>,
-// }
-
-// impl Corpus {
-//     pub fn new(original_text: String) -> Self {
-//         let chunks = original_text
-//             .split("\n")
-//             .map(|chunk| chunk.to_string())
-//             .collect();
-//         let in_context_of = Vec::new();
-//         Self {
-//             original_text,
-//             chunks,
-//             in_context_of: Vec::with_capacity(chunks.len()),
-//         }
-//     }
-// }
-
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Defines the criteria for splitting text into chunks.
 pub enum SplitCriteria {
     /// Splits the text at the end of each sentence.
@@ -81,10 +61,7 @@ impl SplitCriteria {
                 Ok(sentences)
             }
             SplitCriteria::Paragraph => {
-                let paragraphs = text
-                    .split("\n\n")
-                    .map(|p| p.trim().to_string())
-                    .collect();
+                let paragraphs = text.split("\n\n").map(|p| p.trim().to_string()).collect();
                 Ok(paragraphs)
             }
             SplitCriteria::TokenCount {
@@ -94,8 +71,10 @@ impl SplitCriteria {
                 if let Some(tokenizer) = tokenizer {
                     let mut chunks = Vec::new();
                     // Change sentences to own its data
-                    let mut sentences: Vec<String> =
-                        text.unicode_sentences().map(|s| s.trim().to_string()).collect();
+                    let mut sentences: Vec<String> = text
+                        .unicode_sentences()
+                        .map(|s| s.trim().to_string())
+                        .collect();
                     let mut index = 0;
 
                     while index < sentences.len() {
@@ -114,13 +93,16 @@ impl SplitCriteria {
                         let mut current_chunk_text = current_sentences.join(" ");
 
                         // Tokenize the current chunk
-                        let encoding = tokenizer.encode(current_chunk_text.clone(), true).map_err(|e| {
-                            anyhow!(
-                                "Failed to encode text: '{}', with error: {}",
-                                current_chunk_text,
-                                e
-                            )
-                        })?;
+                        let encoding =
+                            tokenizer
+                                .encode(current_chunk_text.clone(), true)
+                                .map_err(|e| {
+                                    anyhow!(
+                                        "Failed to encode text: '{}', with error: {}",
+                                        current_chunk_text,
+                                        e
+                                    )
+                                })?;
                         let token_count = encoding.get_ids().len();
 
                         // If token count exceeds max_tokens, adjust current_sentences
@@ -133,12 +115,12 @@ impl SplitCriteria {
                                 let encoding = tokenizer
                                     .encode(current_chunk_text.clone(), true)
                                     .map_err(|e| {
-                                        anyhow!(
-                                            "Failed to encode text: '{}', with error: {}",
-                                            current_chunk_text,
-                                            e
-                                        )
-                                    })?;
+                                    anyhow!(
+                                        "Failed to encode text: '{}', with error: {}",
+                                        current_chunk_text,
+                                        e
+                                    )
+                                })?;
                                 let token_count = encoding.get_ids().len();
                                 if token_count <= *max_tokens {
                                     break;
@@ -165,15 +147,14 @@ impl SplitCriteria {
                                     };
 
                                     // Tokenize the word
-                                    let encoding = tokenizer.encode(word_to_encode, false).map_err(
-                                        |e| {
+                                    let encoding =
+                                        tokenizer.encode(word_to_encode, false).map_err(|e| {
                                             anyhow!(
                                                 "Failed to encode word: '{}', with error: {}",
                                                 word_to_encode,
                                                 e
                                             )
-                                        },
-                                    )?;
+                                        })?;
                                     let word_tokens = encoding.get_ids();
                                     let word_token_len = word_tokens.len();
 
@@ -564,7 +545,8 @@ mod tests {
 
     #[test]
     fn test_paragraphs_with_multiple_newlines() {
-        let text = "First paragraph.\n\n\nSecond paragraph after multiple newlines.\n\nThird paragraph.";
+        let text =
+            "First paragraph.\n\n\nSecond paragraph after multiple newlines.\n\nThird paragraph.";
         let criteria = SplitCriteria::Paragraph;
         let chunks = criteria.split(text, None).unwrap();
 
@@ -604,8 +586,14 @@ mod tests {
         assert_eq!(chunks[0], "Sentence one.");
         assert_eq!(chunks[1], "Sentence one. Sentence two.");
         assert_eq!(chunks[2], "Sentence one. Sentence two. Sentence three.");
-        assert_eq!(chunks[3], "Sentence one. Sentence two. Sentence three. Sentence four.");
-        assert_eq!(chunks[4], "Sentence two. Sentence three. Sentence four. Sentence five.");
+        assert_eq!(
+            chunks[3],
+            "Sentence one. Sentence two. Sentence three. Sentence four."
+        );
+        assert_eq!(
+            chunks[4],
+            "Sentence two. Sentence three. Sentence four. Sentence five."
+        );
     }
 
     #[test]
